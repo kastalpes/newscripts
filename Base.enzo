@@ -1,0 +1,70 @@
+#
+# PROBLEM DEFINITION FILE: MHD/HD turbulence problem with stochastic forcing 
+# Philipp Grete 2014
+#
+# Typical "turbulence-in-a-box" problem with non-static driving field.
+# For details on stochastic forcing, see Schmidt et al. 2009 A&A 494, 127-145 
+# http://dx.doi.org/10.1051/0004-6361:200809967
+#
+# Works/properly tested only on 3D uniform grids with MUSCL type solvers and MHDCT at this point.
+# For hydro use HydroMethod 3
+# For MHD use HydroMethod 4
+# For MHDCT use HydroMethod 6
+
+#
+#  Set these fresh for each run
+#
+ 
+TopGridDimensions          = 256 256 256
+#TopGridDimensions          = 64 64 64
+DrivenFlowMach      = 0.1 0.1 0.1 # Mach number.  Pretty sure you  want all three
+DrivenFlowMagField  = 0.7         # initial uniform field (x direction)
+StopTime            = 5           # Should be 5*tcross = 5*(0.5/Mach) 
+dtDataDump          = 0.5         # should be 0.1*above
+
+#
+#  set hydro parameters
+#
+HydroMethod                 = 4      # USE 4! 3 - no MHD, 4 - MHD, 6 - MHDCT
+CourantSafetyNumber         = 0.5    # For when it crashes.
+Gamma                       = 1.001  # nearly isothermal.
+Theta_Limiter               = 1.5    #this is a useful knob sometimes.
+BAnyl = 1                            #writes some stuff.
+#EquationOfState             = 1      #only for Hydro6
+#IsothermalSoundSpeed        = 1      #only for Hydro6
+#NumberOfGhostZones          = 5      #only for Hydro6   
+
+#
+# Driving parameters.  Probably leave these alone.
+#
+UseDrivingField     = 1           # otherwise no driving...
+DrivenFlowWeight    = 0.5         # weight of solenoidal components
+DrivenFlowProfile   = 2           # 0 - off (def.), 1 - peak, 2 - parabolic, 3 - band
+DrivenFlowAlpha     = 2 2 2       # ratio of domain size to characteristic length
+DrivenFlowSeed      = 20150419    # seed of random number generator
+DrivenFlowBandWidth = 1.0 1.0 1.0 # band width (1.0 = maximal) 
+DrivenFlowAutoCorrl = 1.0 1.0 1.0 # ratio auto-correlation to large-eddy turn-over time scale
+DrivenFlowDensity    = 1.0        # initial uniform density
+DrivenFlowPressure   = 1.0        # initial uniform pressure
+
+##
+#Definitely leave these alone
+##
+ 
+ProblemType                = 59
+TopGridRank                = 3
+LeftFaceBoundaryCondition  = 3 3 3
+RightFaceBoundaryCondition = 3 3 3
+
+#  set grid refinement parameters
+StaticHierarchy           = 1
+MaximumRefinementLevel    = 0
+DualEnergyFormalism         = 0
+EOSType                     = 0
+Mu                          = 1.0
+InterpolationMethod         = 1
+ConservativeInterpolation   = 1
+#
+#
+DataDumpName        = data
+ParallelRootGridIO  = 1           #necessary
