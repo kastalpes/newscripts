@@ -4,9 +4,9 @@
 # applications within one batch job on TACC's
 # Stampede system.
 #----------------------------------------------------
-#SBATCH -J ay22     # Job name
-#SBATCH -o ay22.o%j # Name of stdout output file(%j expands to jobId)
-#SBATCH -e ay22.o%j # Name of stderr output file(%j expands to jobId)
+#SBATCH -J za01     # Job name
+#SBATCH -o za01.o%j # Name of stdout output file(%j expands to jobId)
+#SBATCH -e za01.o%j # Name of stderr output file(%j expands to jobId)
 #SBATCH -p normal          # Submit to the 'normal' or 'development' queue
 #SBATCH -N 1                    # Total number of nodes requested (16 cores/node)
 #SBATCH -n 16                   # Total number of mpi tasks requested
@@ -31,8 +31,9 @@
 #Application 1
 set echo
 set np = 16
+setenv LD_LIBRARY_PATH "$LD_LIBRARY_PATH":/home1/00369/tg456484/local-yt-2018-12-10-py2/yt-conda/lib
 if ( ! -e DD0000 ) then
-    ibrun -o 0 -n $np ./enzo.exe -d Turb_ay22.enzo
+    ibrun -o 0 -n $np ./enzo.exe -d za01.enzo
 endif
 set restart = `tail -1 OutputLog | awk '{print $3}'`
 set last_restart = "first"
