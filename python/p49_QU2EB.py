@@ -246,7 +246,7 @@ def QU2EB(rootdir,frame):
         hdulist = pyfits.HDUList([hdu])
         hdulist.writeto(Bfile,overwrite=True)
 
-        savetxt(Clfile, zip(lcent,ClEE,ClBB))
+        savetxt(Clfile, list(zip(lcent,ClEE,ClBB)))
 
 '''
 # Plot Q/U
