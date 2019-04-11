@@ -6,7 +6,6 @@ import os
 from optparse import OptionParser
 import glob
 import sys
-sys.path.append( "%s/yt3_scripts"%os.environ['HOME'])
 from GL import *
 import re
 import pdb
@@ -32,7 +31,7 @@ class stepInfo:
     cycle = -1
     wall = None
     set = False
-parser = OptionParser("DaveParse.py output")
+parser = OptionParser("ParseTimesteps output")
 parser.add_option("-o","--stdout", dest="stdout", action="store",default=None,type="string")
 parser.add_option("-e","--stderr", dest="stderr", action="store",default=None,type="string")
 parser.add_option("-j","--jobID", dest="jobID", action="store",default=None,type="string")
@@ -42,7 +41,7 @@ parser.add_option("-j","--jobID", dest="jobID", action="store",default=None,type
 #but I don't think it matters.
 if options.stderr:
     if glob.glob(options.stderr) ==[]:
-        sys.stderr.write("DaveParse.py: file "+options.stderr+" not found.\n")
+        sys.stderr.write("ParseTimesteps.py file "+options.stderr+" not found.\n")
         sys.exit(1)
     filename = options.stderr
 
