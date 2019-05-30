@@ -1,4 +1,4 @@
-
+import yt
 from yt.utilities import physical_constants as units
 import numpy as np
 import pdb
@@ -80,4 +80,30 @@ class equillibrium_callback():
         this_axes.plot(Densities,Pressures,c='b')
         for T in self.temps:
             this_axes.plot(Densities,PfromTempDen(T,Densities),c='k')
+
+def do_phase(ds,fields=['density','pressure','cell_volume'],phase_args={},weight_field=None,n_bins=[64,64],prefix='RUN'):
+
+    phase_args['bin_fields']=[fields[0],fields[1]]
+    phase_args['fields']=[fields[2]]
+    phase_args['weight_field']=weight_field
+    #phase_args['extrema']=local_extrema
+    phase_args['n_bins']=n_bins
+    reg=ds.all_data()
+    phase = yt.create_profile(reg,**phase_args)
+    #self.phase = weakref.proxy(phase)
+    pp = yt.PhasePlot.from_profile(phase)
+    pp.set_xlabel(fields[0])
+    pp.set_ylabel(fields[1])
+
+    callback=equillibrium_callback()
+    callback(pp)
+    pp.save(prefix)
+
+frame = 61
+setname = "../../DD%04d/data%04d"%(frame,frame)
+ds = yt.load(setname)
+do_phase(ds,prefix="za06_%04d"%frame)
+
+
+
 
