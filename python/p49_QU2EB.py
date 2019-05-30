@@ -7,8 +7,8 @@ frbname = 'frbs'
 #if os.path.isdir('code') :
 #    sys.path.append('code')
 
-#import cmbtools
-import cmbtools_handler as cmbtools
+import cmbtools
+#import cmbtools_handler as cmbtools
 #import pyfits
 import astropy.io.fits as pyfits
 from scipy.optimize import leastsq
@@ -30,13 +30,19 @@ def linear_chi2(par,x,y) :
 
 
 
-def slopes_powers(car,frame, n0=1,p=1, fitlmin=1e3, fitlmax=8e3, plot_format="pdf"):
+def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, fitlmin=1e3, fitlmax=8e3, plot_format="pdf"):
     #base = '%s/FRBs/DD%04d_Cl%s_n0-%04d_p-%d.dat'%(car.directory,frame, "%s", n0, p)
     #output_base = '%s_DD%04d_n0-%04d_p-%d_%s.%s'%(car.outname,frame, n0, p,"%s","%s")
-    base = '%s/%s/DD%04d_Cl%s.dat'%(car.directory,frbname,frame, "%s")
-    output_base = '%s_DD%04d_%s.%s'%(car.outname,frame,"%s","%s")
-    shortname = car.name
-    shortname_n0p = "%s_n0-%04d_p-%d"%(shortname, n0, p)
+    if car is not None:
+        base = '%s/%s/DD%04d_Cl%s.dat'%(car.directory,frbname,frame, "%s")
+        output_base = '%s_DD%04d_%s.%s'%(car.outname,frame,"%s","%s")
+        shortname = car.name
+        shortname_n0p = "%s_n0-%04d_p-%d"%(shortname, n0, p)
+    else:
+        base = '%s/DD%04d_Cl%s.dat'%(directory,frame, "%s")
+        output_base = '%s_DD%04d_%s.%s'%(prefix,frame,"%s","%s")
+        shortname = prefix
+        shortname_n0p = "%s_n0-%04d_p-%d"%(shortname, n0, p)
 
 #fitlmin = 5e3
 #fitlmax = 3e4
