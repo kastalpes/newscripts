@@ -20,7 +20,7 @@ def return_average_quantities(file_list=[], all_quan = defaultdict(lambda: list(
         all_quan[key] = np.array( all_quan[key]).flatten()
     return all_quan
 
-def files_from_output(path_to_output_log):
+def files_from_output(path_to_output_log, suffix=".AverageQuantities.h5"):
     if 'OutputLog' not in path_to_output_log.split("/"):
         output_log = path_to_output_log + "/OutputLog"
         path = path_to_output_log
@@ -33,7 +33,7 @@ def files_from_output(path_to_output_log):
     fptr.close()
     files = []
     for line in lines:
-        files.append( path+line.split()[2][1:]+".AverageQuantities.h5")
+        files.append( path+line.split()[2][1:]+suffix)
     return files
 
 def all_quan_from_outputlog(output_log):
