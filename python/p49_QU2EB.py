@@ -7,8 +7,8 @@ frbname = 'frbs'
 #if os.path.isdir('code') :
 #    sys.path.append('code')
 
-#import cmbtools
-import cmbtools_handler as cmbtools
+import cmbtools
+#import cmbtools_handler as cmbtools
 #import pyfits
 import astropy.io.fits as pyfits
 from scipy.optimize import leastsq
