@@ -30,7 +30,7 @@ def linear_chi2(par,x,y) :
 
 
 
-def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, fitlmin=1e3, fitlmax=8e3, plot_format="pdf"):
+def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, plot_format="pdf", fit_range = None):
     #base = '%s/FRBs/DD%04d_Cl%s_n0-%04d_p-%d.dat'%(car.directory,frame, "%s", n0, p)
     #output_base = '%s_DD%04d_n0-%04d_p-%d_%s.%s'%(car.outname,frame, n0, p,"%s","%s")
     if car is not None:
@@ -50,17 +50,44 @@ def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, fitlmin=
 
     ClE = {}
     ClB = {}
+    ClTE = {}
+    ClEB = {}
 
     for ax in ['x','y','z'] :
-        ell, ClE[ax], ClB[ax] = pylab.loadtxt(base % ax,usecols=[0,1,2],unpack=True)
+        fname = base % ax
+        fptr = open(fname,'r')
+        lines=fptr.readlines()
+        fptr.close()
+        ncol =len(lines[0].split()) 
+        if ncol == 3:
+            ell, ClE[ax], ClB[ax] = pylab.loadtxt(fname,usecols=[0,1,2],unpack=True)
+            use_te = use_eb = False
+        elif ncol == 5:
+            ell, ClE[ax], ClB[ax],ClTE[ax], ClEB[ax] = pylab.loadtxt(fname,usecols=[0,1,2,3,4],unpack=True)
+            use_te = True 
+            use_eb=True
+        else:
+            print("Wrong number of columns.  Not 3 or 5. %d\n%ncol")
+            raise
+
         
+    fitlmin=1e3
+    fitlmax=8e3
+    if fit_range is None:
+        fitlmin = fit_range[0]
+        fitlmax = fit_range[1]
+
     ellmask = (fitlmin < ell)*(ell < fitlmax)
 
     Eslope = {}
     Bslope = {}
+    TEslope = {}
+    EBslope = {}
 
     Eamp = {}
     Bamp = {}
+    TEamp = {}
+    EBamp = {}
 
     import pdb
     #pdb.set_trace()
@@ -90,6 +117,18 @@ def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, fitlmin=
         res = leastsq(linear_chi2, mb, args=(x,y) )
         Bslope[ax] = res[0][0]
         Bamp[ax] = pow(10,res[0][1])
+
+        if use_te:
+            y = np.log10(ClTE[ax][ellmask_finite])
+            res = leastsq(linear_chi2, mb, args=(x,y) )
+            TEslope[ax] = res[0][0]
+            TEamp[ax] = pow(10,res[0][1])
+
+        if use_eb:
+            y = np.log10(ClEB[ax][ellmask_finite])
+            res = leastsq(linear_chi2, mb, args=(x,y) )
+            EBslope[ax] = res[0][0]
+            EBamp[ax] = pow(10,res[0][1])
 
         
     if make_plots:
@@ -175,14 +214,16 @@ def slopes_powers(frame, directory=".", prefix='RUN',car=None,n0=1,p=1, fitlmin=
 #else:
 #    rootdir = './output'
 #    Qlist = glob.glob(rootdir+'/*/DD*_Q[xyz]*.fits')
-def EBfromQU(Q,U, return_quharm=False):
+def EBfromQU(Q,U, T=None, H=None,BoxSize=1, return_quharm=False):
 
     if not Q.flags['C_CONTIGUOUS']:
         Q = np.ascontiguousarray(Q)
     if not U.flags['C_CONTIGUOUS']:
         U = np.ascontiguousarray(U)
+    if not T.flags['C_CONTIGUOUS']:
+        T = np.ascontiguousarray(T)
     N = array(shape(Q),dtype = int32)
-    xsize = 5 * pi / 180
+    xsize = 5 * pi / 180*BoxSize
     size2d = array([xsize,xsize])
     Delta = size2d/N
 
@@ -200,16 +241,30 @@ def EBfromQU(Q,U, return_quharm=False):
     B = cmbtools.harm2map(Bharm,Delta)
     if return_quharm:
         output = {'E':E,'B':B,'Eh':Eharm,'Bh':Bharm, 'Qh':Qharm, 'Uh':Uharm, 'Deltal':Deltal,'Delta':Delta}
+        output['N']=N
     else:
         output = E,B,Eharm,Bharm
+
+    if T is not None:
+        Tharm = cmbtools.map2harm(T,Delta)
+        output['Th']=Tharm
+    if H is not None:
+        Hharm = cmbtools.map2harm(H,Delta)
+        output['Hh']=Hharm
+
+        
     return output
-def QU2EB(rootdir,frame):
+def QU2EB(rootdir,frame,BoxSize=None):
+    if BoxSize is None:
+        BoxSize=1
     Qlist = glob.glob(rootdir+'/DD%04d_Q[xyz]*.fits'%frame)
     Ulist = []
     for Qfile in Qlist:
         mo = re.match('(.*/DD[0-9]{4}_)Q([xyz].*)(.fits)',Qfile)
         Ufile = mo.group(1)+'U'+mo.group(2)+'.fits'
         Ulist.append(Ufile)
+        #here we implicity assume Temperature = density.
+        Tfile = mo.group(1)+'density_'+mo.group(2)+'.fits'
 
     QUlist = zip(Qlist,Ulist)
 
@@ -217,6 +272,7 @@ def QU2EB(rootdir,frame):
 
         Q = array(pyfits.open(Qfile)[0].data,dtype=double)
         U = array(pyfits.open(Ufile)[0].data,dtype=double)
+        T = array(pyfits.open(Tfile)[0].data,dtype=double)
 
         N = array(shape(Q),dtype = int32)
         xsize = 5 * pi / 180
@@ -224,14 +280,16 @@ def QU2EB(rootdir,frame):
         Delta = size2d/N
         Deltal = cmbtools.Delta2l(Delta,N)
 
-        E,B, Eharm, Bharm = EBfromQU(Q,U)
+        stuff=EBfromQU(Q,U,T=T,return_quharm=True,BoxSize=BoxSize)
 
         lmax = Deltal[0]*N[0]
         lbins = linspace(0,lmax,100)
         lcent = lbins[:-1] + diff(lbins)/2.
         
-        ClEE = cmbtools.harm2cl(Eharm,Deltal,lbins)
-        ClBB = cmbtools.harm2cl(Bharm,Deltal,lbins)
+        ClEE = cmbtools.harm2cl(stuff['Eh'],Deltal,lbins)
+        ClBB = cmbtools.harm2cl(stuff['Bh'],Deltal,lbins)
+        ClTE = cmbtools.harm2clcross_samegrid(stuff['Th'], stuff['Eh'], Deltal,lbins)
+        ClEB = cmbtools.harm2clcross_samegrid(stuff['Eh'], stuff['Bh'], Deltal,lbins)
 
         # write the output near the input
         mo = re.match('(.*/DD[0-9]{4}_)Q([xyz].*)(.fits)',Qfile)
@@ -244,15 +302,15 @@ def QU2EB(rootdir,frame):
 
         print( Efile, Bfile, Clfile)
 
-        hdu = pyfits.PrimaryHDU(E)
+        hdu = pyfits.PrimaryHDU(stuff['E'])
         hdulist = pyfits.HDUList([hdu])
         hdulist.writeto(Efile,overwrite=True)
 
-        hdu = pyfits.PrimaryHDU(B)
+        hdu = pyfits.PrimaryHDU(stuff['B'])
         hdulist = pyfits.HDUList([hdu])
         hdulist.writeto(Bfile,overwrite=True)
 
-        savetxt(Clfile, list(zip(lcent,ClEE,ClBB)))
+        savetxt(Clfile, list(zip(lcent,ClEE,ClBB, ClTE, ClEB)))
 
 '''
 # Plot Q/U
