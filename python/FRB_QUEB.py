@@ -165,7 +165,7 @@ class queb_package():
             self.stuff['Bamp_%s'%ax  ].append(EBSlopePower['Bamp'][ax])
             self.stuff['Eslope_%s'%ax].append(EBSlopePower['Eslope'][ax])
             self.stuff['Bslope_%s'%ax].append(EBSlopePower['Bslope'][ax])
-    def pull_fft(self,frame,fit_range=None,ax='x'):
+    def pull_fft(self,frame,ax='x'):
         """Pulls spectra data from several sources.
         QUEB spectra are read from fits files, and the spectra are computed.
         Fluid quantity spectra are computed elsewhere (bug collins for the code)
@@ -190,20 +190,41 @@ class queb_package():
         import cmbtools
         #x = cmbtools.map2harm(Q,np.ones(2))
         ts=Cl2(q,u,d,H=h,BoxSize=self.BoxSize)
+        for name,arr in [ ['d',d],['h',h],['q',q],['u',u],['e',e],['b',b]]:
+            if name in ts:
+                print("SHOOT double cover %s"%name)
+            ts[name]=arr
+
+
 
         product_dir = "%s/DD%04d.products"%(self.directory,frame)
         #   N_fft = dt.read_fft('%s/fft_density_%s.float32'%(product_dir,ax),'density')
         #ts['N_fft']=N_fft[:,:N_fft.shape[1]//2+1]
 
-        plt.clf()
-        ppp=plt.imshow( np.log10(np.abs( ts['Th'])))
-        plt.colorbar(ppp)
-        plt.savefig('AbsTharm_n%04d_%s.png'%(frame,ax))
-        plt.clf()
+        #plt.clf()
+        #ppp=plt.imshow( np.log10(np.abs( ts['Th'])))
+        #plt.colorbar(ppp)
+        #plt.savefig('AbsTharm_n%04d_%s.png'%(frame,ax))
+        #plt.clf()
         #ppp=plt.imshow( np.log10(np.abs(ts['N_fft'])))
         #plt.colorbar(ppp)
         #plt.savefig('AbsDensity_n%04d_%s.png'%(frame,ax))
         return ts
+    def image_fields(self,frame,axis='x',ts=None):
+        if ts=None:
+            ts=self.pull_fft(frame,axis)
+        for name,arr in [ 'd','h','q','u','e','b']:
+            fig,ax=plt.subplots(1,1)
+            ax.clear()
+            array = ts[name]
+            proj=ax.imshow(array,origin='lower',interpolation='nearest')
+            fig.colorbar(proj, ax=ax)
+            outname = "%s_%04d_%s_%s.png"%(self.prefix,frame,name,axis)
+            fig.savefig(outname)
+            print(outname)
+            plt.close(fig)
+        return ts
+
     def make_spectra(self,frame):
         import spectra_tools as st
         reload(st)
