@@ -96,7 +96,7 @@ class queb_package():
         self.prefix=prefix
         self.fit_range=fit_range
         self.BoxSize=BoxSize
-    def EBall(self):
+    def EBall(self,frame=None):
         if 'EBcycles' not in self.stuff:
             self.stuff['EBcycles']=[]
             for ax in 'xyz':
@@ -104,13 +104,12 @@ class queb_package():
                 self.stuff['Bamp_%s'%ax]=[]
                 self.stuff['Eslope_%s'%ax]=[]
                 self.stuff['Bslope_%s'%ax]=[]
-        for frame in self.frames:
-            ds = yt.load("%s/DD%04d/data%04d"%(self.directory,frame,frame))
-            p49_fields.add_QU(ds)
-            if frame not in self.stuff['EBcycles']:
-                self.make_frbs(frame,ds=ds)
-                self.QUEB(frame,BoxSize=self.BoxSize)
-                self.EBslopes(frame,fit_range=self.fit_range)
+        ds = yt.load("%s/DD%04d/data%04d"%(self.directory,frame,frame))
+        p49_fields.add_QU(ds)
+        if frame not in self.stuff['EBcycles']:
+            self.make_frbs(frame,ds=ds)
+            self.QUEB(frame,BoxSize=self.BoxSize)
+            self.EBslopes(frame,fit_range=self.fit_range)
 #       self.dump()
     def make_frbs(self,frame, axes=['x','y','z'], ds=None):
         fields=[]
