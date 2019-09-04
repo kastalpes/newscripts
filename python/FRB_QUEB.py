@@ -205,6 +205,18 @@ class queb_package():
         #plt.colorbar(ppp)
         #plt.savefig('AbsDensity_n%04d_%s.png'%(frame,ax))
         return ts
+    def make_spectra(self,frame):
+        import spectra_tools as st
+        reload(st)
+        oober = st.short_oober(self.directory, frame=frame)
+        st.MakeVelocitySpectra(oober,frame)
+        st.MakeAccelSpectra(oober,frame)
+        st.MakeVelocitySpectra(oober,frame)
+        st.MakeMagneticSpectra(oober,frame)
+        st.MakeDensitySpectra(oober,frame)
+
+
+
     def pull_spectra(self,frame,fit_range=None,ax='x'):
         """Pulls spectra data from several sources.
         QUEB spectra are read from fits files, and the spectra are computed.
@@ -229,6 +241,7 @@ class queb_package():
         import cmbtools
         #x = cmbtools.map2harm(Q,np.ones(2))
         ts=Cl2(q,u,d,H=h,BoxSize=self.BoxSize)
+        self.make_spectra(frame)
         ts['vspec']=dpy( "%s/DD%04d.products/power_velocity.h5"%(self.directory,frame) , ['k','power'])
         ts['aspec']=dpy( "%s/DD%04d.products/power_acceleration.h5"%(self.directory,frame) , ['k','power'])
         ts['dspec']=dpy( "%s/DD%04d.products/power_density.h5"%(self.directory,frame) , ['k','power'])
