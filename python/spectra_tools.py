@@ -6,6 +6,7 @@ Why were all the ghost zones set to -1?
 mark_time = None
 from GL import *
 import davetools
+import yt
 import fourier_tools_py3.fourier_filter as Filter
 
 def shell_average(power,oober,frame,field,debug=1,mark_time=None):
@@ -82,8 +83,27 @@ class short_oober():
     def __init__(self, directory="./STUFF/", frame=0):
         self.frame=frame
         self.directory=directory
+        self.ds_dict={}
+        self.region_dict={}
+        self.last_frame=None
     def product_dir(self,frame):
         return "%s/DD%04d.products"%(self.directory,frame)
+    def load(self,frame):
+        ds_name = "%s/DD%04d/data%04d"%(self.directory,frame,frame)
+        if frame in self.ds_dict:
+            self.ds = self.ds_dict[frame]
+        else:
+            self.ds = yt.load(ds_name)
+        return self.ds
+    def get_region(self,frame):
+        if frame in self.region_dict:
+            self.region=self.region_dict[frame]
+        else:
+            ds = self.load(frame)
+            resolution = ds['TopGridDimensions']
+            left = [0.0]*3
+            self.region=self.ds.covering_grid(0,left,resolution)
+        return self.region
 
     def fft(self,frame=None,field=None,data=None,make_cg=True,num_ghost_zones=0,dtype='float32',debug=0,fft_func=np.fft.fftn):
         if dtype == 'float32':
@@ -110,7 +130,9 @@ class short_oober():
             if debug > 0:
                 print("Create FFT")
             if data == None:
-                this_set = self.data[field]
+
+                region = self.get_region(frame)
+                this_set = region[field]
             else:
                 this_set = data
             fft = fft_func(this_set)/this_set.size
