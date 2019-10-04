@@ -15,18 +15,34 @@ class queb_snapshot():
     """Container for QUEB, T (density), H(magnetic field).
     Contains fields and their transforms.
     """
-    def __init__(self,Q,U,T=None,H=None,BoxSize=1.0):
+    def __init__(self,Q,U,T=None,H=None,BoxSize=1.0,axis='x',frame=-1, simulation=None):
         self.Q=Q
         self.U=U
         self.T=T
         self.H=H
         self.BoxSize=BoxSize
-        self.compute_harmonic_products()
-        self.product_list=[] #restricted access 
+        self.axis=axis
+        self.frame=frame
+        self.simulation=simulation
     def __getitem__(self,item):
         """square bracket access method"""
         #this is a kludge
         return self.__dict__[item]
+    def write(self):
+        xd='DD'
+        frb_dir = "%s/%s"%(self.simulation.directory,p49_QU2EB.frbname)
+        product_dir = "%s/DD%04d.products"%(self.simulation.directory,self.frame)
+        Ef= "%s/%s%04d_E%s.fits"%(frb_dir,xd,self.frame,self.axis)
+        Bf= "%s/%s%04d_B%s.fits"%(frb_dir,xd,self.frame,self.axis)
+        Clf= "%s/%s%04d_Cl%s.fits"%(frb_dir,xd,self.frame,self.axis)
+        hdu = pyfits.PrimaryHDU(self.E)
+        hdulist = pyfits.HDUList([hdu])
+        hdulist.writeto(Ef,overwrite=True)
+        hdu = pyfits.PrimaryHDU(self.B)
+        hdulist = pyfits.HDUList([hdu])
+        hdulist.writeto(Bf,overwrite=True)
+        np.savetxt(Clf, list(zip(self.lbins,self.ClEE,self.ClBB, self.ClTE, self.ClEB)))
+
     def compute_harmonic_products(self):
         """
         N = np.array(arr.shape,dtype = np.int32)
@@ -51,10 +67,12 @@ class queb_snapshot():
             self.T = np.ascontiguousarray(T)
         self.N = np.array(self.Q.shape,dtype = np.int32)
 
+        #We arrange things so that Delta=Delta x = 1.
+        #Thus Delta L = 2pi/N
         self.xsize = 64*self.BoxSize
         self.size2d = np.array([self.xsize]*2)
         self.Delta = self.size2d/self.N
-        self.Deltal = cmbtools.Delta2l(self.Delta,self.N)
+        self.Deltal = 2*np.pi/(self.N*self.Delta) #cmbtools.Delta2l(self.Delta,self.N) #2 pi/(N Delta)
         self.lmax = self.Deltal[0]*self.N[0]/2
         self.lbins = np.arange(0,self.N[0]//2) *self.Deltal[0]
         self.lcent = self.lbins[:-1] + np.diff(self.lbins)/2.
@@ -94,27 +112,20 @@ class simulation_package():
         self.prefix=prefix
         self.fit_range=fit_range
         self.BoxSize=BoxSize
+
     def EBall(self):
-        if 'EBcycles' not in self.stuff:
-            self.stuff['EBcycles']=[]
-            for ax in 'xyz':
-                self.stuff['Eamp_%s'%ax]=[]
-                self.stuff['Bamp_%s'%ax]=[]
-                self.stuff['Eslope_%s'%ax]=[]
-                self.stuff['Bslope_%s'%ax]=[]
         for frame in self.frames:
             ds = yt.load("%s/DD%04d/data%04d"%(self.directory,frame,frame))
             p49_fields.add_QU(ds)
-            if frame not in self.stuff['EBcycles']:
-                self.make_frbs(frame,ds=ds)
-                self.QUEB(frame,BoxSize=self.BoxSize)
-                self.EBslopes(frame,fit_range=self.fit_range)
+            self.make_frbs(frame,ds=ds)
+            for axis in 'xyz':
+                ts=self.read_queb(frame,axis)
+                ts.compute_harmonic_products()
+                ts.write()
+
     def make_frbs(self,frame, axes=['x','y','z'], ds=None):
         fields=[]
         for axis in axes:
-          n0=1; p=1 #n0 in [19,39,1945] and p=0
-          #fields.append( (axis,'Q%s_n0-%04d_p-%d'%(axis,n0,p))   )
-          #fields.append( (axis,'U%s_n0-%04d_p-%d'%(axis,n0,p))   )
           fields.append( (axis,'Q%s'%(axis))   )
           fields.append( (axis,'U%s'%(axis))   )
           fields.append( (axis,'density') )
@@ -124,22 +135,15 @@ class simulation_package():
             outputdir = "%s/%s/"%(self.directory,frbname)
             if not os.access(outputdir, os.F_OK):
                 os.mkdir(outputdir)
-            #Hm.  Q and U have the name in the field, but others don't.
+            #fix names; Q and U have the name in the field, but others don't.
             if field[0] in 'QU' and field[1] in 'xyz':
                 field_name = field
             else:
                 field_name = field + "_"+axis
             outfile = outputdir+"/DD%.4d_%s.fits" %(frame,field_name)
-            #move this in the 'make' conditional?
-            #if ds is None:
-            #    ds = self.car.load(frame)
-            #    res = ds.parameters['TopGridDimensions'][2 + ord('x') - ord(axis)] # zyx order
             if os.access(outfile, os.F_OK) and not self.clobber:
                 print("FRB exists: %s"%outfile)
             else:
-                #if ds is None:
-                #    ds = self.car.load(frame)
-                #    res = ds.parameters['TopGridDimensions'][2 + ord('x') - ord(axis)] # zyx order
                 print("FRB being produced: %s"%outfile)
                 res = ds.parameters['TopGridDimensions'][0] #2 + ord('x') - ord(axis)]
                 proj = ds.proj(field,axis)
@@ -165,6 +169,13 @@ class simulation_package():
             self.stuff['Bslope_%s'%ax].append(EBSlopePower['Bslope'][ax])
 
     def read_queb(self,frame,ax='x'):
+        def read_fits(fitname):
+            d=None
+            if os.path.exists(fitname):
+                d=np.ascontiguousarray(pyfits.open(fitname)[0].data,dtype=np.double)
+            return d
+
+
         frb_dir = "%s/%s"%(self.directory,frbname)
         product_dir = "%s/DD%04d.products"%(self.directory,frame)
         xd='DD'
@@ -174,18 +185,20 @@ class simulation_package():
         Uf= "%s/%s%04d_U%s.fits"%(frb_dir,xd,frame,ax)
         Ef= "%s/%s%04d_E%s.fits"%(frb_dir,xd,frame,ax)
         Bf= "%s/%s%04d_B%s.fits"%(frb_dir,xd,frame,ax)
-        d=np.ascontiguousarray(pyfits.open(Df)[0].data,dtype=np.double)
-        h=np.ascontiguousarray(pyfits.open(Hf)[0].data,dtype=np.double)
-        q=np.ascontiguousarray(pyfits.open(Qf)[0].data,dtype=np.double)
-        u=np.ascontiguousarray(pyfits.open(Uf)[0].data,dtype=np.double)
-        e=np.ascontiguousarray(pyfits.open(Ef)[0].data,dtype=np.double)
-        b=np.ascontiguousarray(pyfits.open(Bf)[0].data,dtype=np.double)
-        ts=queb_snapshot(q,u,d,H=h,BoxSize=self.BoxSize)
+        d=read_fits(Df)
+        h=read_fits(Hf)
+        q=read_fits(Qf)
+        u=read_fits(Uf)
+        e=read_fits(Ef)
+        b=read_fits(Bf)
+        ts=queb_snapshot(q,u,d,H=h,BoxSize=self.BoxSize,axis=ax,simulation=self,frame=frame)
+        ts.compute_harmonic_products()
         return ts
 
     def image_fields(self,frame,axis='x',ts=None):
         if ts is None:
             ts=self.read_queb(frame,axis)
+            ts.compute_harmonic_products()
         for name in [ 'T','H','Q','U','E','B']:
             fig,ax=plt.subplots(1,1)
             ax.clear()
@@ -227,7 +240,8 @@ class simulation_package():
         u=np.ascontiguousarray(pyfits.open(Uf)[0].data,dtype=np.double)
         e=np.ascontiguousarray(pyfits.open(Ef)[0].data,dtype=np.double)
         b=np.ascontiguousarray(pyfits.open(Bf)[0].data,dtype=np.double)
-        ts=queb_snapshot(q,u,d,H=h,BoxSize=self.BoxSize)
+        ts=queb_snapshot(q,u,d,H=h,BoxSize=self.BoxSize,axis=ax,simulation=self,frame=frame)
+        ts.compute_harmonic_products()
         self.make_spectra(frame)
         ts.vspec=dt.dpy( "%s/DD%04d.products/power_velocity.h5"%(self.directory,frame) , ['k','power'])
         ts.aspec=dt.dpy( "%s/DD%04d.products/power_acceleration.h5"%(self.directory,frame) , ['k','power'])
@@ -319,7 +333,7 @@ class simulation_package():
         xlim(this_ell)
         
         ax.legend(loc=1)
-        ts['limits']=ylimits
+        ts.limits=ylimits
 
 
         #dt.axbonk(ax,xlabel='k/k1',ylabel='power',xscale='log',yscale='log')
