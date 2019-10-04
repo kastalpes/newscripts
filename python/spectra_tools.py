@@ -8,12 +8,12 @@ from GL import *
 import davetools
 import fourier_tools_py3.fourier_filter as Filter
 
-def shell_average(power,oober,frame,field,debug=1,mark_time=None):
+def shell_average(power,oober,frame,field,debug=-1,mark_time=None):
     ff = Filter.FourierFilter(power)
     power_1d = np.array([power[ff.get_shell(bin)].sum() for bin in range(ff.nx)])
     filename = "%s/power_%s.h5"%(oober.product_dir(frame), field)
     if debug>0:
-        print("spectra saved in ", filename)
+        print("Saved spectra %s"%filename)
     file = h5py.File(filename,'w')
     file.create_dataset('power',power_1d.shape,data=power_1d)
     kspace=ff.get_shell_k()
@@ -85,7 +85,7 @@ class short_oober():
     def product_dir(self,frame):
         return "%s/DD%04d.products"%(self.directory,frame)
 
-    def fft(self,frame=None,field=None,data=None,make_cg=True,num_ghost_zones=0,dtype='float32',debug=0,fft_func=np.fft.fftn):
+    def fft(self,frame=None,field=None,data=None,make_cg=True,num_ghost_zones=0,dtype='float32',debug=-1,fft_func=np.fft.fftn):
         if dtype == 'float32':
             fft_dtype = 'complex64'
         elif dtype == 'float64':
