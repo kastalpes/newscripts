@@ -34,7 +34,6 @@ class FourierFilter(object):
         for i,dim in enumerate(self.data.shape):
             sl = i*(1,)+(dim,)+(l-i-1)*(1,)
             k = fpack.fftfreq(dim)
-            print("SIZE OF K"+str(len(k)) + " " + str(self.data.shape))
             k.resize(sl)
             self._kk.append(k)
 
