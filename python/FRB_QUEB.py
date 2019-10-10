@@ -1,3 +1,26 @@
+"""
+Improved tools for generating QUEB maps, fitting spectra, and plotting stuff.
+Two primary  objects: simulation_package and queb_snapshot.
+simulation_package holds the location of the simulation and meta data.
+queb_snapshot is a container for a single projection (frame and axis).  
+Simulation_package has several useful methods:
+    EBall computes FRBs of Q and U for all directions and frames
+    make_frbs makes frbs.  Can be expensive
+    make_spectra makes 3d spectra of primitive quantities. Can be expensive.
+    read_queb reads QUEBTH fields from disk
+    image_fields makes images of the FRBs
+    plot_eb plots EE and BB
+    plot_many_spectra plots all the spectra.
+
+
+queb_snapshot has several useful methods:
+    compute_harmonic_products takes Q&U and produces E&B, transforms, and spectra
+    determine_fit_range is a stub that will get more physics soon.
+    fit_eb_slopes fits EE and BB spectra to powerlaw
+Also in this update is "spectra_tools" which creates 3d spectra.
+
+Usage can be found in make_all_queb
+"""
 from GL import *
 import yt
 import p49_QU2EB
@@ -10,24 +33,31 @@ import spectra_tools as st
 reload(st)
 frbname="frbs"
 reload(p49_QU2EB)
+
 def powerlaw_fit(x,y,fitrange):  
     mb=nar([0,0])
     ellmask = (fitrange[0] < x)*(x < fitrange[1])
-    elmask = np.logical_and( ellmask, y>0 )
+    ellmask = np.logical_and( ellmask, y>0 )
     logx = np.log10(x[ellmask])
     logy = np.log10(y[ellmask])
-    res = leastsq(linear_chi2, mb, args=(x,y) )
-    slope = res[0][0]
-    amp = pow(10,res[0][1])
+    fig,ax=plt.subplots(1,1)
+    ax.plot(logx,logy)
+    res = np.polyfit(logx,logy,1)
+    slope = res[0]
+    amp = pow(10,res[1])
+    ax.plot(logx, slope*logx+res[1],c='k')
     return slope,amp, res
 
 def read_fits(fitname):
+    """Read an array from a file name.
+    Returns None if the file does not exist."""
     d=None
     if os.path.exists(fitname):
         d=np.ascontiguousarray(pyfits.open(fitname)[0].data,dtype=np.double)
     return d
 
 def linear_chi2(par,x,y) :
+    """for use with some fitting techniques"""
     m = par[0]
     y0 = par[1]
     xcent = (x[0]+x[-1])/2
@@ -35,6 +65,7 @@ def linear_chi2(par,x,y) :
     return(y - ymodel)
 
 class slope_package():
+    """A container for hanging on to fit products."""   
     def __init__(self):
         self.slope={}
         self.amp={}
@@ -45,17 +76,24 @@ class slope_package():
         self.amp[which]=amp
         self.res[which]=res
     def plot(self,ax,which,**kwargs):
+        """Plots the line we found onto *ax*.
+        Also update the label of the line to reflect the value
+        of the slope"""
         m=self.slope[which]
-        a=self.slope[amp]
+        a=self.amp[which]
         y0 = a*self.range[0]**m
         y1 = a*self.range[1]**m
+        label=kwargs.get('label','')
+        label += r' $%0.1f$'%m
+        kwargs['label']=label
+
         ax.plot( self.range,[y0,y1],**kwargs)
 
 
 
 class queb_snapshot():
-    """Container for QUEB, T (density), H(magnetic field).
-    Contains fields and their transforms.
+    """Container for projections: QUEB, T (density), H(magnetic field).
+    Contains fields, their transforms, and spectra
     """
     def __init__(self,Q,U,T=None,H=None,E=None,B=None,BoxSize=1.0,axis='x',frame=-1, simulation=None):
         self.Q=Q
@@ -64,6 +102,7 @@ class queb_snapshot():
         self.H=H
         self.E=E
         self.B=B
+        #BoxSize is in units of 64 zones.  So BoxSize=8 for a 512^3 run.
         self.BoxSize=BoxSize
         self.axis=axis
         self.frame=frame
@@ -73,6 +112,7 @@ class queb_snapshot():
         #this is a kludge
         return self.__dict__[item]
     def write(self):
+        """saves E, B, and the spectra to the simulation location"""
         xd='DD'
         frb_dir = "%s/%s"%(self.simulation.directory,p49_QU2EB.frbname)
         product_dir = "%s/DD%04d.products"%(self.simulation.directory,self.frame)
@@ -133,13 +173,19 @@ class queb_snapshot():
         self.ClEB = cmbtools.harm2clcross_samegrid(self.Eharm,self.Bharm,self.Deltal,self.lbins)
 
     def fit_eb_slopes(self,fitrange=None,slopes=None):
+        """Given the fit range, determine the slope.
+        The *slopes* argument a container for the slopes and amplitudes.  Developmental.
+        """
         if slopes is None:
             slopes=slope_package()
         if fitrange is None:    
             fitrange = self.determine_fit_range()
+        slopes.range=fitrange
         self.compute_bins()
         if self.E is None:
             self.compute_harmonic_products()
+        #the star turns the output of powerlaw_fit into three arguments for 
+        #slopes.ingest
         slopes.ingest("EE", *powerlaw_fit(self.lcent,self.ClEE, fitrange))
         slopes.ingest("BB", *powerlaw_fit(self.lcent,self.ClBB, fitrange))
         slopes.ingest("TT", *powerlaw_fit(self.lcent,self.ClTT, fitrange))
@@ -168,15 +214,15 @@ class simulation_package():
     def __init__(self,directory=".",frames=[], prefix="RUN", 
                  BoxSize=1, plot_format='png', clobber=False):
         
-        self.stuff={}
-        self.plot_format=plot_format
         self.directory=directory
         self.frames=frames
         self.prefix=prefix
         self.BoxSize=BoxSize
+        self.plot_format=plot_format
         self.clobber=clobber #for checking before re-computing. Not used yet.
 
     def EBall(self):
+        """compute all EB products and save them into the frb directory"""
         for frame in self.frames:
             ds = yt.load("%s/DD%04d/data%04d"%(self.directory,frame,frame))
             p49_fields.add_QU(ds)
@@ -217,6 +263,17 @@ class simulation_package():
                 hdulist.writeto(outfile,clobber=True)
                 print("wrote", outfile)
 
+    def make_spectra(self,frame):
+        """This makes 3d power spectra of velocity, acceleration, 
+        magnetic field, and density.  Can be very slow.
+        FFTs are stored in DD????.products"""
+        oober = st.short_oober(self.directory, frame=frame)
+        st.MakeVelocitySpectra(oober,frame)
+        st.MakeAccelSpectra(oober,frame)
+        st.MakeVelocitySpectra(oober,frame)
+        st.MakeMagneticSpectra(oober,frame)
+        st.MakeDensitySpectra(oober,frame)
+
     def read_queb(self,frame,ax='x'):
         """ Read Q,U,E,B,Density,and Magnetic field FRBs.
         All values default to None if the file is not found."""
@@ -256,14 +313,6 @@ class simulation_package():
             plt.close(fig)
         return ts
 
-    def make_spectra(self,frame):
-        oober = st.short_oober(self.directory, frame=frame)
-        st.MakeVelocitySpectra(oober,frame)
-        st.MakeAccelSpectra(oober,frame)
-        st.MakeVelocitySpectra(oober,frame)
-        st.MakeMagneticSpectra(oober,frame)
-        st.MakeDensitySpectra(oober,frame)
-
 
     def plot_eb(self,ts,fname='TEST.png', slopes=None):
         """plot spectra extracted from e&b.
@@ -272,7 +321,7 @@ class simulation_package():
         def dostuff(arr):
             return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
         def dostuff2(arr):
-            return arr[1:]/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
+            return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
 
         fig,ax=plt.subplots(1,1)
         k = ts.vspec[0]
@@ -291,7 +340,7 @@ class simulation_package():
         ax.plot( this_k,dostuff2(ts['aspec'][1]),c='k',marker='*', label=r'$a$');   ylimits(ts['aspec'][1][pos_k])# print('a lim',ylimits)
         ax.plot( this_ell,dostuff2(ts['ClEE']),        marker='*', label=r'$EE$',c='g'); ylimits(rEB)# print(ylimits)
         if slopes is not None:
-            slopes.plot(ax,'E',label=r'$\alpha^{EE}$',c='k')
+            slopes.plot(ax,'EE',label=r'$\alpha^{EE}$',c='r')
             
         ax.plot( this_ell,dostuff2(ts['ClBB']),        marker='*', label=r'$BB$',c='b'); ylimits(rEB)# print(ylimits)
         ax.plot( this_ell,dostuff(rEB),                marker='*', label=r'$r_{EB}$',c='m'); ylimits(rEB)# print(ylimits)
@@ -299,9 +348,9 @@ class simulation_package():
         #ax.set_xscale('symlog',linthreshx=1)
         #ax.set_xlim(xlim)
         #ax.set_ylim(1e-9,1e4)
-        ax.set_yscale('symlog',linthreshy=1e-2)
+        #ax.set_yscale('symlog',linthreshy=1e-2)
         #ax.set_ylim(ylimits)
-        ax.set_ylim(-1,1)
+        #ax.set_ylim(-1,1)
         #print("ylimits",ylimits)
 
         title="t2 %s n%04d %s"%(self.prefix,ts['frame'],ts['axis'])
