@@ -348,9 +348,9 @@ class simulation_package():
         #ax.set_xscale('symlog',linthreshx=1)
         #ax.set_xlim(xlim)
         #ax.set_ylim(1e-9,1e4)
-        #ax.set_yscale('symlog',linthreshy=1e-2)
         #ax.set_ylim(ylimits)
-        #ax.set_ylim(-1,1)
+        ax.set_yscale('symlog',linthreshy=1e-2)
+        ax.set_ylim(-30,30)
         #print("ylimits",ylimits)
 
         title="t2 %s n%04d %s"%(self.prefix,ts['frame'],ts['axis'])
