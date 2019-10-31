@@ -433,27 +433,17 @@ class simulation_package():
             ylimits=dt.extents()
             xlim=dt.extents()
             ell=ts.lcent
-            #this_ell=(ell/ell[1])[pos_k]
             this_ell=ell[:-1]#[1:] 
 
-            rEB = ts['ClEB']/(ts['ClEE']*ts['ClBB'])**0.5
-            lab=r'$r_{EB}=C_{\ell}^{EB}/\sqrt{C_{\ell}^{EE}C_{\ell}^{EE}}$'
-            ax.plot( this_ell,dostuff2(ts['ClEE']),        marker='*', label=r'$EE$',c='g'); ylimits(rEB)# print(ylimits)
+            lab=r'$C_\ell^{EE}$'
+            ax.plot( this_ell,dostuff2(ts['ClEE']),        marker='*', label=r'$EE$',c='g')
+            #the slope value is added to the label in slopes.plot
             if slopes is not None:
                 slopes.plot(ax,'EE',label=r'$\alpha^{EE}$',c='r',norm=ts.bin_style=='5deg')
                 
-            ax.plot( this_ell,dostuff2(ts['ClBB']),        marker='*', label=r'$BB$',c='b'); ylimits(rEB)# print(ylimits)
-            #ax.plot( this_ell,dostuff(rEB),                marker='*', label=r'$r_{EB}$',c='m'); ylimits(rEB)# print(ylimits)
+            ax.plot( this_ell,dostuff2(ts['ClBB']),        marker='*', label=r'$BB$',c='b')
             dt.axbonk(ax,xlabel='k/k1',ylabel=lab,xscale='log',yscale='log')
-            #ax.set_xscale('symlog',linthreshx=1)
-            #ax.set_xlim(xlim)
-            #ax.set_ylim(1e-9,1e4)
-            #ax.set_ylim(ylimits)
-            #ax.set_yscale('symlog',linthreshy=1e-2)
-            #ax.set_ylim(-30,30)
-            #print("ylimits",ylimits)
-
-            title="t2 %s n%04d %s"%(self.prefix,ts['frame'],ts['axis'])
+            title=["new binning","old binning"][ns]
             ax.legend(loc=0)
             ax.set_title(title)
         fig.savefig(fname)
