@@ -71,22 +71,24 @@ class slope_package():
         self.amp={}
         self.res={}
         self.range=[]
-    def ingest(self,which,slope,amp,res):
+    def ingest(self,which,slope=None,amp=None,res=None):
         self.slope[which]=slope
         self.amp[which]=amp
         self.res[which]=res
-    def plot(self,ax,which,**kwargs):
+    def plot(self,ax,which,norm=False,**kwargs):
         """Plots the line we found onto *ax*.
         Also update the label of the line to reflect the value
         of the slope"""
         m=self.slope[which]
         a=self.amp[which]
-        y0 = a*self.range[0]**m
-        y1 = a*self.range[1]**m
+        ellfit=1    
+        if norm:
+            ellfit = np.sqrt(self.range[0]*self.range[1])
+        y0 = a*(self.range[0]/ellfit)**m
+        y1 = a*(self.range[1]/ellfit)**m
         label=kwargs.get('label','')
         label += r' $%0.1f$'%m
         kwargs['label']=label
-
         ax.plot( self.range,[y0,y1],**kwargs)
 
 
@@ -95,7 +97,7 @@ class queb_snapshot():
     """Container for projections: QUEB, T (density), H(magnetic field).
     Contains fields, their transforms, and spectra
     """
-    def __init__(self,Q,U,T=None,H=None,E=None,B=None,BoxSize=1.0,axis='x',frame=-1, simulation=None):
+    def __init__(self,Q,U,T=None,H=None,E=None,B=None,BoxSize=1.0,axis='x',frame=-1, simulation=None, bin_style='dx1'):
         self.Q=Q
         self.U=U
         self.T=T
@@ -107,6 +109,7 @@ class queb_snapshot():
         self.axis=axis
         self.frame=frame
         self.simulation=simulation
+        self.bin_style=bin_style
     def __getitem__(self,item):
         """square bracket access method"""
         #this is a kludge
@@ -127,7 +130,7 @@ class queb_snapshot():
         hdulist.writeto(Bf,overwrite=True)
         np.savetxt(Clf, list(zip(self.lbins,self.ClEE,self.ClBB, self.ClTE, self.ClEB)))
 
-    def compute_bins(self):
+    def compute_bins_dx1(self):
         #We arrange things so that Delta=Delta x = 1.
         #Thus Delta L = 2pi/N
         self.xsize = 64*self.BoxSize
@@ -138,6 +141,32 @@ class queb_snapshot():
         self.lmax = self.Deltal[0]*self.N[0]/2
         self.lbins = np.arange(0,self.N[0]//2) *self.Deltal[0]
         self.lcent = self.lbins[:-1] + np.diff(self.lbins)/2.
+
+    def compute_bins_5deg(self):
+        #We arrange things so that Delta=Delta x = 1.
+        #Thus Delta L = 2pi/N
+        self.N = np.array(np.shape(self.Q),dtype = np.int32)
+        self.xsize = 5 * np.pi / 180*self.BoxSize
+        self.size2d = np.array([self.xsize,self.xsize])
+        self.Delta = self.size2d/self.N
+        self.Deltal = cmbtools.Delta2l(self.Delta,self.N)
+        self.lmax = self.Deltal[0]*self.N[0]
+        self.lbins = np.linspace(0,self.lmax,100)
+        self.lcent = self.lbins[:-1] + np.diff(self.lbins)/2.
+        #self.xsize = 64*self.BoxSize
+        #self.size2d = np.array([self.xsize]*2)
+        #self.N = np.array(self.Q.shape,dtype = np.int32)
+        #self.Delta = self.size2d/self.N
+        #self.Deltal = 2*np.pi/(self.N*self.Delta) #cmbtools.Delta2l(self.Delta,self.N) #2 pi/(N Delta)
+        #self.lmax = self.Deltal[0]*self.N[0]/2
+        #self.lbins = np.arange(0,self.N[0]//2) *self.Deltal[0]
+        #self.lcent = self.lbins[:-1] + np.diff(self.lbins)/2.
+    def compute_bins(self):
+        if self.bin_style=='5deg':
+            self.compute_bins_5deg()
+        else:
+            self.compute_bins_dx1()
+
     def compute_harmonic_products(self):    
         """
         This step may prove to be expensive.  If so, insert logic to cache 
@@ -190,14 +219,42 @@ class queb_snapshot():
         slopes.ingest("BB", *powerlaw_fit(self.lcent,self.ClBB, fitrange))
         slopes.ingest("TT", *powerlaw_fit(self.lcent,self.ClTT, fitrange))
         return slopes
+    def fit_eb_slopes_2(self,fitrange=None,slopes=None):
+        """Given the fit range, determine the slope.
+        The *slopes* argument a container for the slopes and amplitudes.  Developmental.
+        """
+        if slopes is None:
+            slopes=slope_package()
+        if fitrange is None:    
+            fitrange = self.determine_fit_range()
+        slopes.range=fitrange
+        ell = self.lcent
+        ellmask = (fitrange[0] < ell)*(ell < fitrange[1])
+        ClE = self['ClEE']; ClB = self['ClBB']
+        ellmask_finite = np.logical_and(ellmask, ClE > 0)
+        ellmask_finite = np.logical_and(ellmask_finite, ClB > 0)
+        x =np.log10(ell[ellmask_finite])
+        y = np.log10(ClE[ellmask_finite])
+        mb = np.array([0,0])
+        res = leastsq(linear_chi2, mb, args=(x,y) )
+        Eslope = res[0][0]
+        Eamp = pow(10,res[0][1])
+        slopes.ingest("EE",slope=Eslope,amp=Eamp,res=res)
+        return slopes
 
     def determine_fit_range(self):
         """hopefully this will be made to be a more accurate representation of the fit in the future.
         """
         fitrange=np.zeros(2)
         self.compute_bins()
-        fitrange[0] = 4*self.Deltal[0]
-        fitrange[1]=  8*self.Deltal[0]
+        if self.bin_style == 'dx1':
+            fitrange[0] = 4*self.Deltal[0]
+            fitrange[1]=  8*self.Deltal[0]
+        else:
+            fitlmin=self.lcent[4]
+            fitlmax=self.lcent[10]
+            fitrange[0]=fitlmin;fitrange[1]=fitlmax
+            #ellmask = (fitlmin < ell)*(ell < fitlmax)
         return fitrange
     def read_spectra(self,frame,ax='x'):
         """read 3d spectra"""
@@ -274,7 +331,7 @@ class simulation_package():
         st.MakeMagneticSpectra(oober,frame)
         st.MakeDensitySpectra(oober,frame)
 
-    def read_queb(self,frame,ax='x'):
+    def read_queb(self,frame,ax='x',bin_style='dx1'):
         """ Read Q,U,E,B,Density,and Magnetic field FRBs.
         All values default to None if the file is not found."""
         frb_dir = "%s/%s"%(self.directory,frbname)
@@ -294,7 +351,7 @@ class simulation_package():
         u=read_fits(Uf)
         e=read_fits(Ef)
         b=read_fits(Bf)
-        ts=queb_snapshot(q,u,d,H=h, E=e,B=b,BoxSize=self.BoxSize,axis=ax,simulation=self,frame=frame)
+        ts=queb_snapshot(q,u,d,H=h, E=e,B=b,BoxSize=self.BoxSize,axis=ax,simulation=self,frame=frame,bin_style=bin_style)
         return ts
 
     def image_fields(self,frame,axis='x',ts=None):
@@ -312,7 +369,6 @@ class simulation_package():
             print(outname)
             plt.close(fig)
         return ts
-
 
     def plot_eb(self,ts,fname='TEST.png', slopes=None):
         """plot spectra extracted from e&b.
@@ -356,6 +412,50 @@ class simulation_package():
         title="t2 %s n%04d %s"%(self.prefix,ts['frame'],ts['axis'])
         ax.legend(loc=0)
         ax.set_title(title)
+        fig.savefig(fname)
+        print("saved "+fname)
+        plt.close(fig)
+
+    def plot_2eb(self,ts0,ts1,slopes0=None,slopes1=None,fname='TEST.png', slopes=None):
+        """plot spectra extracted from e&b.
+        the function 'dostuff' treats normalization and slicing."""
+
+        def dostuff(arr):
+            return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
+        def dostuff2(arr):
+            return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
+
+        fig,axes=plt.subplots(1,2)
+        ax0 = axes[0]; ax1 = axes[1]
+        for ns,ts in enumerate([ts0,ts1]):
+            slopes = [slopes0,slopes1][ns] #this is clunky, sorry.
+            ax=axes[ns]
+            ylimits=dt.extents()
+            xlim=dt.extents()
+            ell=ts.lcent
+            #this_ell=(ell/ell[1])[pos_k]
+            this_ell=ell[:-1]#[1:] 
+
+            rEB = ts['ClEB']/(ts['ClEE']*ts['ClBB'])**0.5
+            lab=r'$r_{EB}=C_{\ell}^{EB}/\sqrt{C_{\ell}^{EE}C_{\ell}^{EE}}$'
+            ax.plot( this_ell,dostuff2(ts['ClEE']),        marker='*', label=r'$EE$',c='g'); ylimits(rEB)# print(ylimits)
+            if slopes is not None:
+                slopes.plot(ax,'EE',label=r'$\alpha^{EE}$',c='r',norm=ts.bin_style=='5deg')
+                
+            ax.plot( this_ell,dostuff2(ts['ClBB']),        marker='*', label=r'$BB$',c='b'); ylimits(rEB)# print(ylimits)
+            #ax.plot( this_ell,dostuff(rEB),                marker='*', label=r'$r_{EB}$',c='m'); ylimits(rEB)# print(ylimits)
+            dt.axbonk(ax,xlabel='k/k1',ylabel=lab,xscale='log',yscale='log')
+            #ax.set_xscale('symlog',linthreshx=1)
+            #ax.set_xlim(xlim)
+            #ax.set_ylim(1e-9,1e4)
+            #ax.set_ylim(ylimits)
+            #ax.set_yscale('symlog',linthreshy=1e-2)
+            #ax.set_ylim(-30,30)
+            #print("ylimits",ylimits)
+
+            title="t2 %s n%04d %s"%(self.prefix,ts['frame'],ts['axis'])
+            ax.legend(loc=0)
+            ax.set_title(title)
         fig.savefig(fname)
         print("saved "+fname)
         plt.close(fig)
