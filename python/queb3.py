@@ -34,6 +34,15 @@ reload(st)
 frbname="frbs"
 reload(p49_QU2EB)
 
+def read_fits(fitname):
+    """Read an array from a file name.
+    Returns None if the file does not exist."""
+    d=None
+    if os.path.exists(fitname):
+        d=np.ascontiguousarray(pyfits.open(fitname)[0].data,dtype=np.double)
+    return d
+
+
 def powerlaw_fit(x,y,fitrange):  
     mb=nar([0,0])
     ellmask = (fitrange[0] < x)*(x < fitrange[1])
@@ -47,15 +56,6 @@ def powerlaw_fit(x,y,fitrange):
     amp = pow(10,res[1])
     ax.plot(logx, slope*logx+res[1],c='k')
     return slope,amp, res
-
-def read_fits(fitname):
-    """Read an array from a file name.
-    Returns None if the file does not exist."""
-    d=None
-    if os.path.exists(fitname):
-        d=np.ascontiguousarray(pyfits.open(fitname)[0].data,dtype=np.double)
-    return d
-
 def linear_chi2(par,x,y) :
     """for use with some fitting techniques"""
     m = par[0]
@@ -280,6 +280,7 @@ class queb_snapshot():
         slopes.ingest("BB", *powerlaw_fit(self.lcent,self.ClBB, fitrange))
         slopes.ingest("TT", *powerlaw_fit(self.lcent,self.ClTT, fitrange))
         return slopes
+
     def fit_eb_slopes_2(self,fitrange=None,slopes=None):
         """Given the fit range, determine the slope.
         The *slopes* argument a container for the slopes and amplitudes.  Developmental.
@@ -442,6 +443,7 @@ class simulation_package():
             return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
 
         fig,ax=plt.subplots(1,1)
+
         k = ts.vspec[0]
         ylimits=dt.extents()
         xlim=dt.extents()
@@ -569,3 +571,23 @@ class simulation_package():
         ax.set_title(title)
         fig.savefig(fname)
         plt.close(fig)
+    def plot_ratio(self,ts,fname='TEST.png', slopes=None):
+        """plot spectra extracted from e&b.
+        the function 'dostuff' treats normalization and slicing."""
+
+        def dostuff(arr):
+            return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
+        def dostuff2(arr):
+            return arr[1:]#/np.abs(arr[2])  #np.abs((arr/arr[2])[1:])
+
+        fig,ax=plt.subplots(1,1)
+        this_ell = ts.lcent
+
+        ax.plot( this_ell,ts['ClBB']/ts['ClEE'],marker='*', label=r'$C_{\ell}^{BB}/C_{\ell}^{EE}$')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel('k')
+        ax.set_ylabel('ratio')
+        fig.savefig(fname)
+        print(fname)
+
