@@ -1,0 +1,91 @@
+# PPML version.
+# UNIGRID PROBLEM DEFINITION FILE: Isothermal Mach 6 Turbulence Simulation
+#
+#  define problem
+#
+ProblemType                    = 60      // turbulence simulation
+TopGridRank                    = 3
+TopGridDimensions              = 16 16 16
+DomainRightEdge                = 1 1 1
+BAnyl = 1
+#
+SelfGravity                    = 0       // gravity on
+GravitationalConstant          = 180
+GravityResolution              = 1
+BaryonSelfGravityApproximation = 0
+TopGridGravityBoundary         = 0       // 0 - periodic for gravity (all dims)
+#
+LeftFaceBoundaryCondition      = 3 3 3   // 3 - periodic for hydro
+RightFaceBoundaryCondition     = 3 3 3
+#
+#  problem parameters
+#
+TurbulenceSimulationGridLeftEdge[0]      = 0 0 0
+TurbulenceSimulationGridRightEdge[0]     = 1 1 1
+#TurbulenceSimulationDensityName          = ic_128.Density
+#TurbulenceSimulationVelocity1Name        = ic_128.x-velocity
+#TurbulenceSimulationVelocity2Name        = ic_128.y-velocity
+#TurbulenceSimulationVelocity3Name        = ic_128.z-velocity
+#TurbulenceSimulationMagnetic1Name        = ic_128.BxF
+#TurbulenceSimulationMagnetic2Name        = ic_128.ByF
+#TurbulenceSimulationMagnetic3Name        = ic_128.BzF
+TurbulenceSimulationNumberOfInitialGrids = 1
+TurbulenceSimulationInitialTemperature   = 1.0  // sound speed, actually
+TurbulenceSimulationInitialDensity       = 1.0
+TurbulenceSimulationInitialMagneticField = 0.0 0.0 0.07071
+
+RandomForcing                            = 0    
+RandomForcingMachNumber                  = 1.3
+#
+#  set I/O and stop/start parameters
+#
+StopCycle               = 100000
+dtDataDump              = 1
+StopTime                = 30
+#DataDumpName            = ts_256L0_M6H5_
+#CycleSkipGlobalDataDump = -100
+#CycleSkipDataDump       = 100
+ParallelRootGridIO = 0
+
+#
+#  set hydro parameters
+#
+#Gamma                  = 1.666
+CourantSafetyNumber    = 0.3
+huge_number            = 1e+6
+tiny_number            = 1e-6
+#
+#  set grid refinement parameters
+#
+
+HydroMethod            = 6
+EquationOfState        = 0
+#Slope limiter 1, Riemann 6, Reconstruction 0 is equivalent to MHDLi = 0 1 6 1 0, as in Paper08
+MHDCTSlopeLimiter      = 1  // Minmod  
+RiemannSolver          = 6  // HLLD
+ReconstructionMethod   = 0  // PLM 
+NumberOfGhostZones     = 5
+#MHD_CT_Method = 1
+IsothermalSoundSpeed   = 1.0
+
+#
+# New parameters:
+#
+
+#TracerParticlesAddToRestart = 1 
+
+StaticHierarchy = 0
+MaximumRefinementLevel = 0
+CellFlaggingMethod = 6
+RefineByJeansLengthSafetyFactor = 8
+
+#TracerParticleOn = 1
+#TracerParticleCreationLeftEdge = 0 0 0 
+#TracerParticleCreationRightEdge= 1 1 1
+#TracerParticleCreationSpacing = 0.0078125
+RadiativeCoolingModel = 3
+RadiativeCooling = 1
+DensityUnits = 1.67262171e-24 #1 proton per cc
+TimeUnits = 3.15576e13        #Myr in s
+LengthUnits = 6.171355162e20  #200 pc in cm
+OutputTemperature = 1
