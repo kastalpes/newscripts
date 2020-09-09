@@ -1,0 +1,70 @@
+#!/bin/tcsh
+#----------------------------------------------------
+# Example SLURM job script to run multiple mpi
+# applications within one batch job on TACC's
+# Stampede system.
+#----------------------------------------------------
+#SBATCH -J make_time     # Job name
+#SBATCH -o make_time.o%j # Name of stdout output file(%j expands to jobId)
+#SBATCH -e make_time.o%j # Name of stderr output file(%j expands to jobId)
+#SBATCH -p normal          # Submit to the 'normal' or 'development' queue
+#SBATCH -N 1                    # Total number of nodes requested (16 cores/node)
+#SBATCH -n 64                   # Total number of mpi tasks requested
+#SBATCH -t 4:00:00             # Run time (hh:m) - 1.5 hours
+#SBATCH --tasks-per-node 64
+#SBATCH --mail-user=kastalpes@gmail.com
+#SBATCH --mail-type=begin  # email me when the job starts
+#SBATCH --mail-type=end    # email me when the job finishes
+# The next line is required if the user has more than one project
+
+
+# This example will run 3 MPI applications using 32 tasks,
+# 16 tasks, and 16 tasks
+
+#DO NOT use tacc_affinity with multiple MPI applications
+# within the same batch script!
+# If running in a hybrid mode, please contact the help desk
+# for support.
+
+# Launch each MPI application using the "-o" and "-n" flags
+# in the background
+#Application 1
+set echo
+#set np = 4096
+setenv LD_LIBRARY_PATH "$LD_LIBRARY_PATH":/work/04178/tg834777/stampede2/yt-conda/lib
+#    ibrun -o 0 -n $np ./enzo.exe -d 1_2_512.enzo
+ibrun python make_time_2_half.py
+
+ibrun python make_time_3_2.py
+
+ibrun python make_time_3_1.py
+
+ibrun python make_time_3_half.py
+#endif
+#set restart = `tail -1 OutputLog | awk '{print $3}'`
+#set last_restart = "first"
+#set nRestart = 0
+
+
+#while ( 1 )
+
+#@ nRestart = $nRestart + 1
+#  echo "SCRIPT $nRestart : loop" $restart $last_restart
+
+#  if ( $restart != $last_restart ) then
+#    set last_restart = $restart
+#    echo "SCRIPT $nRestart : starting" $restart
+#    ibrun ./enzo.exe -d -r $restart
+#    echo "SCRIPT $nRestart : set restart"
+#    set restart = `tail -1 OutputLog | awk '{print $3}'`
+#    echo "SCRIPT $nRestart : set restart", $restart
+#    #restarter StopCycle 100
+#    echo "SCRIPT $nRestart : restarted"
+#  else
+#    echo "SCRIPT: no restart.  Restart $restart, last $last_restart"
+#    break
+#  endif
+# 
+
+#end
+

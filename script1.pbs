@@ -1,0 +1,40 @@
+#PBS -S /bin/bash
+#PBS -l select=1:ncpus=16:mpiprocs=16:model=ivy
+#PBS -l walltime=8:00:00
+#PBS -q normal
+#PBS -j oe
+#PBS -m bea
+#PBS -N make_time
+module load comp-intel/2018.3.222 mpi-sgi/mpt.2.15r20 hdf5 
+
+##setenv MPI_SHEPHERD true
+
+cd $PBS_O_WORKDIR
+
+#python make_time_half_half.py
+
+#python make_time_half_1.py 
+
+#python make_time_half_2.py 
+
+python make_time_1_half.py 
+
+python make_time_1_1.py 
+
+python make_time_1_2.py 
+
+#python make_time_1_1.py 
+
+#python make_time_1_half.py 
+
+#python make_time_half_2.py 
+
+#python make_time_half_1.py 
+
+#python make_time_3_2.py
+
+#wait(600) #maybe needed if cuts off early
+
+
+
+# -end of script-
