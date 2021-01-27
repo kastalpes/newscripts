@@ -75,7 +75,7 @@ def add_epsilon(n0,p, this_thing=yt):
         return  epsilon 
     
     if verbose: print( 'adding yt field epsilon_n0-%04d_p-%d'%(n0,p))
-    this_thing.add_field('epsilon_n0-%04d_p-%d'%(n0,p), function=_eps_local, force_override=True)
+    this_thing.add_field('epsilon_n0-%04d_p-%d'%(n0,p), function=_eps_local, force_override=True,sampling_type='cell')
 def add_stokes(axis, n0, p, this_thing=yt):
     """makes a stokes field for yt.
     axis should be x,y,z."""
@@ -104,7 +104,7 @@ def add_stokes(axis, n0, p, this_thing=yt):
     #Q_fname= 'Q%s_n0-%04d_p-%d'%(axis,n0,p)
     Q_fname= 'Q%s'%(axis) #_n0-%04d_p-%d'%(axis,n0,p)
     if verbose: print( 'adding yt field %s'%Q_fname)
-    this_thing.add_field(Q_fname, units='code_density', function=_Q_local, force_override=True)
+    this_thing.add_field(Q_fname, units='code_density', function=_Q_local, force_override=True,sampling_type='cell')
 
     def _U_local(field,data):
         """Makes stokes U."""
@@ -124,7 +124,7 @@ def add_stokes(axis, n0, p, this_thing=yt):
     #U_fname = 'U%s_n0-%04d_p-%d'%(axis,n0,p)
     U_fname = 'U%s'%(axis)
     if verbose: print( 'adding yt field %s'%U_fname)
-    this_thing.add_field(U_fname, units='g/cm**3', function=_U_local, force_override=True)
+    this_thing.add_field(U_fname, units='g/cm**3', function=_U_local, force_override=True,sampling_type='cell')
     return Q_fname, U_fname
 
 
@@ -201,7 +201,7 @@ def add_QU(this_ds):
 #       add_stokes(axis, n0, p=0)
 #       add_N2(axis, n0, p=0)
         add_stokes(axis, n0=1, p=1, this_thing=this_ds)
-        add_N2(axis, n0=1, p=1, this_thing=this_ds)
+        #add_N2(axis, n0=1, p=1, this_thing=this_ds)
         #add_unweighted_stokes(axis)
 
 
