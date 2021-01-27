@@ -101,6 +101,8 @@ def do_phase(ds,fields=['density','pressure','cell_volume'],phase_args={},weight
 
 frame = 61
 setname = "../../DD%04d/data%04d"%(frame,frame)
+frame=30
+setname = "/scratch1/dcollins/Paper49_EBQU/ca08_ti_midfield/DD%04d/data%04d"%(frame,frame)
 ds = yt.load(setname)
 do_phase(ds,prefix="za06_%04d"%frame)
 
