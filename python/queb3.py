@@ -31,7 +31,6 @@ import davetools as dt
 reload(dt)
 import spectra_tools as st
 reload(st)
-frbname="frbs"
 reload(p49_QU2EB)
 
 def read_fits(fitname):
@@ -253,6 +252,8 @@ class queb_snapshot():
             self.Tharm = cmbtools.map2harm(self.T,self.Delta)
         if self.H is not None:
             self.Hharm = cmbtools.map2harm(self.H,self.Delta)
+        else:
+            self.Hharm=None
         self.ClEE = cmbtools.harm2cl(self.Eharm,self.Deltal,self.lbins)
         self.ClBB = cmbtools.harm2cl(self.Bharm,self.Deltal,self.lbins)
         if self.Hharm is not None:
@@ -333,13 +334,17 @@ class simulation_package():
     Keeps track of the data location
     Produces FRBs from simulation data."""
     def __init__(self,directory=".",frames=[], prefix="RUN", 
-                  plot_format='png', clobber=False):
+                  plot_format='png', clobber=False,dataset_name='DD',frbname="./frbs",plotdir="."):
+
         
         self.directory=directory
         self.frames=frames
         self.prefix=prefix
         self.plot_format=plot_format
         self.clobber=clobber #for checking before re-computing. Not used yet.
+        self.dataset_name=dataset_name
+        self.frbname=frbname
+        self.plotdir=plotdir
 
     def EBall(self):
         """compute all EB products and save them into the frb directory"""
@@ -362,7 +367,7 @@ class simulation_package():
           fields.append( (axis,'magnetic_field_strength'))
 
         for axis, field in fields :
-            outputdir = "%s/%s/"%(self.directory,frbname)
+            outputdir = "%s/%s/"%(self.directory,self.frbname)
             if not os.access(outputdir, os.F_OK):
                 os.mkdir(outputdir)
             #fix names; Q and U have the name in the field, but others don't.
@@ -394,18 +399,29 @@ class simulation_package():
         st.MakeMagneticSpectra(oober,frame)
         st.MakeDensitySpectra(oober,frame)
 
-    def read_queb(self,frame,ax='x',bin_style='dx1'):
+    def read_queb(self,frame,ax='x',bin_style='dx1',theta=None):
         """ Read Q,U,E,B,Density,and Magnetic field FRBs.
         All values default to None if the file is not found."""
-        frb_dir = "%s/%s"%(self.directory,frbname)
+        frb_dir = "%s/%s"%(self.directory,self.frbname)
+
+
         product_dir = "%s/DD%04d.products"%(self.directory,frame)
-        xd='DD'
-        Df= "%s/%s%04d_density_%s.fits"%(frb_dir,xd,frame,ax)
-        Hf= "%s/%s%04d_magnetic_field_strength_%s.fits"%(frb_dir,xd,frame,ax)
-        Qf= "%s/%s%04d_Q%s.fits"%(frb_dir,xd,frame,ax)
-        Uf= "%s/%s%04d_U%s.fits"%(frb_dir,xd,frame,ax)
-        Ef= "%s/%s%04d_E%s.fits"%(frb_dir,xd,frame,ax)
-        Bf= "%s/%s%04d_B%s.fits"%(frb_dir,xd,frame,ax)
+        xd=self.dataset_name
+
+        if theta is None:
+            Df= "%s/%s%04d_density_%s.fits"%(frb_dir,xd,frame,ax)
+            Hf= "%s/%s%04d_magnetic_field_strength_%s.fits"%(frb_dir,xd,frame,ax)
+            Qf= "%s/%s%04d_Q%s.fits"%(frb_dir,xd,frame,ax)
+            Uf= "%s/%s%04d_U%s.fits"%(frb_dir,xd,frame,ax)
+            Ef= "%s/%s%04d_E%s.fits"%(frb_dir,xd,frame,ax)
+            Bf= "%s/%s%04d_B%s.fits"%(frb_dir,xd,frame,ax)
+        else:
+            Df= "%s/%s%04d_I_th%04d.fits"%(frb_dir,xd,frame,theta)
+            Qf= "%s/%s%04d_Q_th%04d.fits"%(frb_dir,xd,frame,theta)
+            Uf= "%s/%s%04d_U_th%04d.fits"%(frb_dir,xd,frame,theta)
+            Hf= "not_saved" #we don't need these files.
+            Ef= "not_saved"
+            Bf= "not_saved"
         if not os.path.exists(Qf):
             print("Warning: no Q file exists: "+Qf)
         d=read_fits(Df)
@@ -417,17 +433,22 @@ class simulation_package():
         ts=queb_snapshot(q,u,d,H=h, E=e,B=b,axis=ax,simulation=self,frame=frame,bin_style=bin_style)
         return ts
 
-    def image_fields(self,frame,axis='x',ts=None):
+    def image_fields(self,frame,axis='x',ts=None,field_list=[ 'T','H','Q','U','E','B'],theta=None):
         if ts is None:
             ts=self.read_queb(frame,axis)
             ts.compute_harmonic_products()
-        for name in [ 'T','H','Q','U','E','B']:
+        for name in field_list:
             fig,ax=plt.subplots(1,1)
             ax.clear()
             array = ts[name]
+
             proj=ax.imshow(array,origin='lower',interpolation='nearest')
             fig.colorbar(proj, ax=ax)
-            outname = "%s_%04d_%s_%s.png"%(self.prefix,frame,name,axis)
+            if theta is None:
+                outname = "%s/%s_%04d_%s_%s.png"%(self.plotdir,self.prefix,frame,name,axis)
+            else:
+                outname = "%s/%s_%04d_%s_th%04d.png"%(self.plotdir,self.prefix,frame,name,theta)
+
             fig.savefig(outname)
             print(outname)
             plt.close(fig)
