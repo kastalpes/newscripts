@@ -1,6 +1,6 @@
 #!/bin/tcsh
 
-foreach theta (`nums 0 360 -ns 10 -np 0`)
+foreach theta (0 10 20 30 40 50 60)
     radmc3d image lambda 0.4e3 theta $theta phi 0 nostar pointpc 0.5 0.5 0.5  npix 256 sizepc 1
     mv image.out image_$theta.out
 end
