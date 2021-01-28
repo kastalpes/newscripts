@@ -12,7 +12,7 @@ import queb3
 reload(queb3)
 frames=[490]
 sim_dir = "/scratch1/dcollins/Paper49d/radmc3d_pol_3/"
-plot_dir =  "/home/dcollins4096/PigPen"
+plot_dir =  "./"
 
 #a thing that describes the simulation
 pack = queb3.simulation_package( directory=sim_dir,frames=frames,prefix="ca02_radmc", 
