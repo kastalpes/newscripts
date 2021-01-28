@@ -35,12 +35,13 @@ for fname in glob.glob('image*.out'):
     angle = int(fname.split("_")[1].split(".")[0])
     print(angle)
     for stokes in ['Q','U','I']:
+        index = 'IQU'.index(stokes)
         plotImage(a,cmap=cm.hot,au=True,bunit='inu', stokes=stokes)
         plotpoldir(a.x/au,a.y/au,a.image[:,:,0,0],a.image[:,:,1,0],a.image[:,:,2,0])
         oname = fname.split('.')[0]+"_%s.png"%(stokes)
+        oname = "ca02_units_DD%04d_%s_th%04d.png"%(490,stokes,angle)
         plt.savefig(oname)
 
-        index = 'IQU'.index(stokes)
 
         write_fits("ca02_units_DD%04d_%s_th%04d.fits"%(490,stokes,angle), a.image[:,:,index,0])
 
