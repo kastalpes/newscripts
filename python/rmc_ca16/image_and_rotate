@@ -1,0 +1,18 @@
+#!/bin/tcsh
+
+set theta = 90
+set phi = -90
+radmc3d image lambda 0.4e3 theta $theta phi $phi nostar pointpc 0.5 0.5 0.5  npix 256 sizepc 1
+mv image.out image_"$theta"_"$phi".out
+set theta = 90
+set phi = 180
+set posang = -90
+radmc3d image lambda 0.4e3 theta $theta phi 180 nostar posang $posang pointpc 0.5 0.5 0.5  npix 256 sizepc 1
+mv image.out iimage_"$theta"_"$phi".out
+set theta = 0
+set phi = 0
+radmc3d image lambda 0.4e3 theta $theta phi $phi nostar pointpc 0.5 0.5 0.5  npix 256 sizepc 1
+mv image.out image_"$theta"_"$phi".out
+
+python problem_plot.py
+#end
