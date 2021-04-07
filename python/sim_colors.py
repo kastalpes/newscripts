@@ -9,6 +9,7 @@ color_list=nar(['r','g','b','r','g','b','r','g','b','r','g','b'])
 line_list=nar(['-','-','-','-.','-.','-.','--','--','--',':',':',':'])
 marker_list = nar(['.','.','.','s','s','s','^','^','^','*','*','*'])
 
+framelist=[range(11,31),range(11,31),range(11,31),range(11,31),range(11,31),range(11,31),range(65,85),range(11,31),range(11,31),range(72,91),range(56,75),range(20,40)]
 
 sim_ms = nar(['half','1','2','3'])
 sim_ma = nar(['half','1','2'])
@@ -21,6 +22,7 @@ for ma in sim_ma:
 color=dict(zip(simlist,color_list))
 linestyle = dict(zip(simlist,line_list))
 marker = dict(zip(simlist,marker_list))
+frames = dict(zip(simlist,framelist))
 
 def vals_from_sim(sim):
     ms,ma = sim.split("_")
@@ -40,4 +42,6 @@ for sim in simlist:
     ma_list.append(ma)
 ms_list=nar(ms_list)
 ma_list=nar(ma_list)
+Ms = dict(zip(simlist,ms_list))
+Ma = dict(zip(simlist,ma_list))
 
